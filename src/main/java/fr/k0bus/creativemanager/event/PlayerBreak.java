@@ -10,7 +10,6 @@ import fr.k0bus.k0buscore.utils.StringUtils;
 import java.util.HashMap;
 import java.util.List;
 import org.bukkit.GameMode;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -77,6 +76,10 @@ public class PlayerBreak implements Listener {
           BlockLog blockLog = plugin.getDataManager().getBlockFrom(block.getLocation());
           if (blockLog != null) {
             if (blockLog.isCreative()) {
+              // Tell the player why. Cancelling silently is what makes this read as a client
+              // desync rather than a rule being enforced.
+              if (CreativeManager.getSettings().sendPlayerMessages())
+                CMUtils.sendMessage(p, "permission.break-creative");
               e.setCancelled(true);
               return;
             }
@@ -87,9 +90,11 @@ public class PlayerBreak implements Listener {
         BlockLog blockLog = plugin.getDataManager().getBlockFrom(block.getLocation());
         if (blockLog != null) {
           if (blockLog.isCreative()) {
-            block.setType(Material.AIR);
+            // Let the break run and only suppress the drops. Clearing the block by hand and then
+            // cancelling hid the break from other plugins (CoreProtect and friends) and mutated
+            // the world during an event the server believed had been cancelled.
+            e.setDropItems(false);
             plugin.getDataManager().removeBlock(blockLog.getLocation());
-            e.setCancelled(true);
           }
         }
       } else {

@@ -9,6 +9,7 @@ permission:
   general: '{TAG} &4你没有权限这么做'
   gui: '{TAG} &4你没有权限在创造模式下打开界面'
   build-nbt: '{TAG} &4你没有权限在创造模式下使用自定义 NBT'
+  break-creative: '{TAG} &4You don''t have permission to break a block placed in Creative'
   hit:
     player: '{TAG} &c你没有权限攻击玩家'
     monster: '{TAG} &c你没有权限攻击怪物'

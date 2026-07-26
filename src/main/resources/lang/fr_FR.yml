@@ -9,6 +9,7 @@ permission:
   general: '{TAG} &4Vous n''avez pas la permission'
   gui: '{TAG} &4Vous n''avez pas la permission d''ouvrir une interface en créatif'
   build-nbt: '{TAG} &4You don''t have permission to use Custom NBT'
+  break-creative: '{TAG} &cVous n''avez pas la permission de casser un bloc placé en créatif'
   hit:
     player: '{TAG} &cVous n''avez pas la permission de frapper les joueurs'
     monster: '{TAG} &cVous n''avez pas la permission de frapper les monstres'

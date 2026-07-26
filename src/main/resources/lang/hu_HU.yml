@@ -9,6 +9,7 @@ permission:
   general: '{TAG} &cNincs jogod ehhez a parancshoz.'
   gui: '{TAG} &cKreatív módba nincs jogod megnyitni ezt a menüt.'
   build-nbt: '{TAG} &cKreatív módba nincs jogod használni Custom NBT-t.'
+  break-creative: '{TAG} &4You don''t have permission to break a block placed in Creative'
   hit:
     player: '{TAG} &cKreatív módba nincs jogod sebezni Játékost.'
     monster: '{TAG} &cKreatív módba nincs jogod sebezni Mobokat.'
