@@ -9,19 +9,24 @@ import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class ItemBlacklist {
-  public static void asyncCheck(Player player) {
+
+  /**
+   * Strips blacklisted items from the player's inventory.
+   *
+   * <p>Must be called from the main thread: it mutates live {@link ItemStack} mirrors.
+   *
+   * @param player the player to check.
+   */
+  public static void check(Player player) {
     if (player.hasPermission("creativemanager.bypass.blacklist.get")) return;
-    new BukkitRunnable() {
-      @Override
-      public void run() {
-        for (ItemStack content : player.getInventory().getContents()) {
-          checkBlacklist(content, player, CreativeManager.getSettings().getGetBL());
-        }
-      }
-    }.runTaskLaterAsynchronously(CreativeManager.getInstance(), 2L);
+    List<String> blacklist = CreativeManager.getSettings().getGetBL();
+    // An empty whitelist still means "nothing is allowed", so only short-circuit in blacklist mode.
+    if (blacklist.isEmpty() && !CreativeManager.getSettings().isWhitelist("get")) return;
+    for (ItemStack content : player.getInventory().getContents()) {
+      checkBlacklist(content, player, blacklist);
+    }
   }
 
   public static void checkBlacklist(ItemStack itemStack, Player player, List<String> blacklist) {
@@ -31,27 +36,17 @@ public class ItemBlacklist {
   }
 
   private static boolean isBlackListed(ItemStack item, Player player, List<String> blacklist) {
-    if (item == null) {
+    if (item == null || item.getType() == Material.AIR) {
       return false;
     }
     String itemName = item.getType().name().toLowerCase();
     if (player.hasPermission("creativemanager.bypass.blacklist.get." + itemName)) return false;
-    if (item.getType().equals(Material.AIR)) return false;
-    if ((CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.get")
-                .equals("whitelist")
-            && !SearchUtils.inList(blacklist, item))
-        || (!CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.get")
-                .equals("whitelist")
-            && SearchUtils.inList(blacklist, item))) {
-      HashMap<String, String> replaceMap = new HashMap<>();
-      replaceMap.put("{ITEM}", StringUtils.proper(item.getType().name()));
-      CMUtils.sendMessage(player, "blacklist.get", replaceMap);
-      return true;
+    if (SearchUtils.inList(blacklist, item) == CreativeManager.getSettings().isWhitelist("get")) {
+      return false;
     }
-    return false;
+    HashMap<String, String> replaceMap = new HashMap<>();
+    replaceMap.put("{ITEM}", StringUtils.proper(item.getType().name()));
+    CMUtils.sendMessage(player, "blacklist.get", replaceMap);
+    return true;
   }
 }

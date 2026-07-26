@@ -8,6 +8,7 @@ import fr.k0bus.creativemanager.settings.Protections;
 import fr.k0bus.creativemanager.utils.CMUtils;
 import fr.k0bus.creativemanager.utils.SearchUtils;
 import java.util.*;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -35,6 +36,9 @@ public class InventoryMove implements Listener {
   /** Instantiates a new Inventory move. */
   CreativeManager plugin;
 
+  /** Players with an inventory pass already queued for the next tick. Main thread only. */
+  private final Set<UUID> pendingInventoryChecks = new HashSet<>();
+
   public InventoryMove(CreativeManager plugin, boolean nbt_enabled) {
     this.nbt_enabled = nbt_enabled;
     this.plugin = plugin;
@@ -44,8 +48,19 @@ public class InventoryMove implements Listener {
   void onInventoryInteract(InventoryInteractEvent event) {
     if (event.getInventory().getHolder() instanceof Player p) {
       if (!p.getGameMode().equals(GameMode.CREATIVE)) return;
-      ItemBlacklist.asyncCheck(p);
-      ItemLore.asyncCheck(p);
+      // Creative players click fast, and each pass walks the whole inventory. Collapse a burst of
+      // clicks into a single pass rather than queueing one per click.
+      if (!pendingInventoryChecks.add(p.getUniqueId())) return;
+      Bukkit.getScheduler()
+          .runTaskLater(
+              plugin,
+              () -> {
+                pendingInventoryChecks.remove(p.getUniqueId());
+                if (!p.isOnline() || !p.getGameMode().equals(GameMode.CREATIVE)) return;
+                ItemBlacklist.check(p);
+                ItemLore.check(p);
+              },
+              2L);
     }
   }
 
@@ -64,7 +79,7 @@ public class InventoryMove implements Listener {
         || e.getClick().equals(ClickType.UNKNOWN)) {
       if (CreativeManager.getSettings().getProtection(Protections.DROP)
           && !player.hasPermission("creativemanager.bypass.drop")) {
-        if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+        if (CreativeManager.getSettings().sendPlayerMessages())
           CMUtils.sendMessage(player, "permission.drop");
         e.setCancelled(true);
       }
