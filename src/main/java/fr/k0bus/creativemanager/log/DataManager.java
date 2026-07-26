@@ -4,7 +4,6 @@ import fr.k0bus.creativemanager.CreativeManager;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,11 +17,17 @@ public class DataManager {
 
   Connection conn;
   final String dbname;
-  final HashMap<Location, BlockLog> blockLogHashMap;
+
+  /**
+   * Concurrent because {@link #save()} runs off the main thread while gameplay keeps mutating this
+   * map. A plain HashMap here meant the periodic save could observe a torn map.
+   */
+  final Map<Location, BlockLog> blockLogHashMap;
+
   final CreativeManager plugin;
 
   public DataManager(String dbname, CreativeManager plugin) {
-    this.blockLogHashMap = new HashMap<>();
+    this.blockLogHashMap = new ConcurrentHashMap<>();
     this.dbname = dbname;
     this.plugin = plugin;
     this.conn = startConnection();
@@ -59,8 +64,9 @@ public class DataManager {
 
   public void save() {
     int n = 0;
-    ConcurrentHashMap<Location, BlockLog> cloned = new ConcurrentHashMap<>(blockLogHashMap);
-    for (Map.Entry<Location, BlockLog> val : cloned.entrySet()) {
+    // A ConcurrentHashMap iterator is weakly consistent, so it is safe to walk directly and we no
+    // longer need to copy every logged block on each save.
+    for (Map.Entry<Location, BlockLog> val : blockLogHashMap.entrySet()) {
       if (val.getValue().isSaved()) continue;
       saveAsync(val.getValue());
       n++;
@@ -97,8 +103,8 @@ public class DataManager {
       ps.setInt(5, log.getLocation().getBlockZ());
       ps.setString(6, log.getPlayer().getUniqueId().toString());
       ps.executeUpdate();
-      if (blockLogHashMap.containsKey(log.getLocation()))
-        blockLogHashMap.get(log.getLocation()).setSaved(true);
+      BlockLog current = blockLogHashMap.get(log.getLocation());
+      if (current != null) current.setSaved(true);
     } catch (SQLException ex) {
       Bukkit.getLogger().log(Level.SEVERE, ex.toString());
     } finally {
@@ -203,7 +209,7 @@ public class DataManager {
     }
   }
 
-  public HashMap<Location, BlockLog> getBlockLogHashMap() {
+  public Map<Location, BlockLog> getBlockLogHashMap() {
     return blockLogHashMap;
   }
 }
