@@ -1,6 +1,7 @@
 package fr.k0bus.creativemanager.services;
 
 import fr.k0bus.creativemanager.CreativeManager;
+import fr.k0bus.creativemanager.settings.Protections;
 import fr.k0bus.creativemanager.utils.CMUtils;
 import fr.k0bus.creativemanager.utils.SpigotUtils;
 import fr.k0bus.creativemanager.utils.TextUtils;
@@ -22,6 +23,8 @@ public class ItemLore {
    * @param player the player to check.
    */
   public static void check(Player player) {
+    if (!CreativeManager.getSettings().getProtection(Protections.LORE)) return;
+    if (player.hasPermission("creativemanager.bypass.lore")) return;
     List<String> lore = CreativeManager.getSettings().getLore();
     if (lore.isEmpty()) return;
     for (ItemStack content : player.getInventory().getContents()) {
