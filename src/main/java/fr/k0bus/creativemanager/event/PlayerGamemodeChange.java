@@ -86,7 +86,7 @@ public class PlayerGamemodeChange implements Listener {
       }
       HashMap<String, String> replaceMap = new HashMap<>();
       replaceMap.put("{GAMEMODE}", StringUtils.proper(e.getNewGameMode().name()));
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+      if (CreativeManager.getSettings().sendPlayerMessages())
         CMUtils.sendMessage(p, "inventory.change", replaceMap);
     }
   }

@@ -43,16 +43,8 @@ public class PlayerInteract implements Listener {
     if (p.hasPermission("creativemanager.bypass.blacklist.use")) return;
     if (p.hasPermission("creativemanager.bypass.blacklist.use." + itemName)) return;
     List<String> blacklist = CreativeManager.getSettings().getUseBL();
-    if ((CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.use")
-                .equals("whitelist")
-            && !SearchUtils.inList(blacklist, itemStack))
-        || (!CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.use")
-                .equals("whitelist")
-            && SearchUtils.inList(blacklist, itemStack))) {
+    if (SearchUtils.inList(blacklist, itemStack)
+        != CreativeManager.getSettings().isWhitelist("use")) {
       HashMap<String, String> replaceMap = new HashMap<>();
       replaceMap.put("{ITEM}", StringUtils.proper(itemName));
       CMUtils.sendMessage(p, "blacklist.use", replaceMap);
@@ -75,7 +67,7 @@ public class PlayerInteract implements Listener {
           || block.getType().equals(Material.SOUL_CAMPFIRE)) {
         if (!p.getInventory().getItemInMainHand().getType().name().contains("SHOVEL")) {
           if (!p.hasPermission("creativemanager.bypass.container")) {
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(p, "permission.container");
             e.setCancelled(true);
           }
@@ -95,17 +87,9 @@ public class PlayerInteract implements Listener {
     if (e.getPlayer().isSneaking() && e.getItem() != null) return;
     if (blacklist.isEmpty()) return;
     if (p.hasPermission("creativemanager.bypass.blacklist.useblock")) return;
-    if ((CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.useblock")
-                .equals("whitelist")
-            && !SearchUtils.inList(blacklist, e.getClickedBlock()))
-        || (!CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.useblock")
-                .equals("whitelist")
-            && SearchUtils.inList(blacklist, e.getClickedBlock()))) {
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+    if (SearchUtils.inList(blacklist, e.getClickedBlock())
+        != CreativeManager.getSettings().isWhitelist("useblock")) {
+      if (CreativeManager.getSettings().sendPlayerMessages())
         CMUtils.sendMessage(p, "blacklist.useblock");
       e.setCancelled(true);
     }
@@ -122,7 +106,7 @@ public class PlayerInteract implements Listener {
     try {
       Class.forName("org.bukkit.inventory.meta.SpawnEggMeta");
       if (itemStack.getItemMeta() instanceof SpawnEggMeta) {
-        if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+        if (CreativeManager.getSettings().sendPlayerMessages())
           CMUtils.sendMessage(p, "permission.spawn");
         e.setCancelled(true);
       }

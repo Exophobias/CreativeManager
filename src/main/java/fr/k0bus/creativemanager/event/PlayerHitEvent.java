@@ -36,7 +36,7 @@ public class PlayerHitEvent implements Listener {
         if (e.getEntity() instanceof Player) {
           if (!attacker.hasPermission("creativemanager.bypass.pvp")
               && CreativeManager.getSettings().getProtection(Protections.PVP)) {
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(attacker, "permission.hit.player");
             e.setCancelled(true);
           }
@@ -44,7 +44,7 @@ public class PlayerHitEvent implements Listener {
           if (e.getEntity().getType().equals(EntityType.ARMOR_STAND)) return;
           if (!attacker.hasPermission("creativemanager.bypass.pve")
               && CreativeManager.getSettings().getProtection(Protections.PVE)) {
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(attacker, "permission.hit.monster");
             e.setCancelled(true);
           }
@@ -67,7 +67,7 @@ public class PlayerHitEvent implements Listener {
         if (e.getHitEntity() instanceof Player) {
           if (!attacker.hasPermission("creativemanager.bypass.pvp")
               && CreativeManager.getSettings().getProtection(Protections.PVP)) {
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(attacker, "permission.hit.player");
             e.setCancelled(true);
           }
@@ -75,7 +75,7 @@ public class PlayerHitEvent implements Listener {
           if (!attacker.hasPermission("creativemanager.bypass.pve")
               && CreativeManager.getSettings().getProtection(Protections.PVE)) {
             if (e.getHitEntity() == null) return;
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(attacker, "permission.hit.monster");
             e.setCancelled(true);
           }

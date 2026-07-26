@@ -42,7 +42,7 @@ public class PlayerBuild implements Listener {
     if (p.getGameMode() == GameMode.CREATIVE) {
       if (CreativeManager.getSettings().getProtection(Protections.BUILD)
           && !p.hasPermission("creativemanager.bypass.build")) {
-        if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+        if (CreativeManager.getSettings().sendPlayerMessages())
           CMUtils.sendMessage(p, "permission.build");
         e.setCancelled(true);
       }
@@ -72,19 +72,11 @@ public class PlayerBuild implements Listener {
     if (blacklist.isEmpty()) return;
     if (p.hasPermission("creativemanager.bypass.blacklist.place")) return;
     if (p.hasPermission("creativemanager.bypass.blacklist.place." + blockName)) return;
-    if ((CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.place")
-                .equals("whitelist")
-            && !SearchUtils.inList(blacklist, e.getBlock()))
-        || (!CreativeManager.getSettings()
-                .getConfiguration()
-                .getString("list.mode.place")
-                .equals("whitelist")
-            && SearchUtils.inList(blacklist, e.getBlock()))) {
+    if (SearchUtils.inList(blacklist, e.getBlock())
+        != CreativeManager.getSettings().isWhitelist("place")) {
       HashMap<String, String> replaceMap = new HashMap<>();
       replaceMap.put("{BLOCK}", StringUtils.proper(e.getBlock().getType().name()));
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+      if (CreativeManager.getSettings().sendPlayerMessages())
         CMUtils.sendMessage(p, "blacklist.place", replaceMap);
       e.setCancelled(true);
     }

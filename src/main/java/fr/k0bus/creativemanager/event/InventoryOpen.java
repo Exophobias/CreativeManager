@@ -36,7 +36,7 @@ public class InventoryOpen implements Listener {
           && CreativeManager.getSettings().getProtection(Protections.CONTAINER)) {
         if (isProtectedChest(e.getInventory())) {
           if (!p.hasPermission("creativemanager.bypass.container")) {
-            if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+            if (CreativeManager.getSettings().sendPlayerMessages())
               CMUtils.sendMessage(p, "permission.container");
             e.setCancelled(true);
           }
@@ -56,7 +56,7 @@ public class InventoryOpen implements Listener {
       if (p.getGameMode().equals(GameMode.CREATIVE)
           && CreativeManager.getSettings().getProtection(Protections.GUI)) {
         if (!p.hasPermission("creativemanager.bypass.gui")) {
-          if (CreativeManager.getSettings().getConfiguration().getBoolean("send-player-messages"))
+          if (CreativeManager.getSettings().sendPlayerMessages())
             CMUtils.sendMessage(p, "permission.gui");
           e.setCancelled(true);
         }
