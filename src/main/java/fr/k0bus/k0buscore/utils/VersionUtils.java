@@ -22,8 +22,18 @@ import org.bukkit.Bukkit;
  *
  * <p>This class exists in the plugin's own sources under the ORIGINAL package name. maven-shade
  * gives project classes precedence over dependency classes, so this replaces the broken copy and is
- * relocated to {@code fr.k0bus.creativemanager_libs.k0buscore.utils} with everything else. Delete it
- * as soon as K0busCore ships a version-scheme-agnostic parser upstream.
+ * relocated to {@code fr.k0bus.creativemanager_libs.k0buscore.utils} with everything else.
+ *
+ * <p><b>Upstream has fixed the same bug independently.</b> CreativeManager 1.35.23 on SpigotMC is
+ * titled exactly "Fix version parser". The source for it has NOT been pushed: K0bus/CreativeManager
+ * on GitHub is still at 1.35.22, the same commit this fork sits on, so there is nothing to merge and
+ * `git fetch` will keep reporting us up to date. That agreement is reassuring rather than useful --
+ * it means the diagnosis was right, not that the work is redundant.
+ *
+ * <p>DELETE THIS FILE when 1.35.23's source appears upstream and the merge brings a working parser.
+ * Check whether the fix landed in CreativeManager or in K0busCore before assuming which one to drop.
+ * Note also that taking the official 1.35.23 jar instead would lose this fork's
+ * perf/hot-path-optimisations work, so the jar is not a substitute for the merge.
  */
 public abstract class VersionUtils {
 
