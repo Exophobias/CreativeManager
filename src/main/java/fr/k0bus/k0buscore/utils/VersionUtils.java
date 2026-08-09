@@ -24,16 +24,22 @@ import org.bukkit.Bukkit;
  * gives project classes precedence over dependency classes, so this replaces the broken copy and is
  * relocated to {@code fr.k0bus.creativemanager_libs.k0buscore.utils} with everything else.
  *
- * <p><b>Upstream has fixed the same bug independently.</b> CreativeManager 1.35.23 on SpigotMC is
- * titled exactly "Fix version parser". The source for it has NOT been pushed: K0bus/CreativeManager
- * on GitHub is still at 1.35.22, the same commit this fork sits on, so there is nothing to merge and
- * `git fetch` will keep reporting us up to date. That agreement is reassuring rather than useful --
- * it means the diagnosis was right, not that the work is redundant.
+ * <p><b>Upstream fixed the same bug independently, and this file stays anyway.</b> 1.35.23's source
+ * landed on K0bus/CreativeManager as 36a4562 on 2026-08-09: the same override at the same path in
+ * the same package, using the same shade-precedence trick, returning the same value on both version
+ * schemes. K0busCore itself is untouched and still ships the broken parser, so the override is still
+ * load-bearing no matter whose copy occupies this path.
  *
- * <p>DELETE THIS FILE when 1.35.23's source appears upstream and the merge brings a working parser.
- * Check whether the fix landed in CreativeManager or in K0busCore before assuming which one to drop.
- * Note also that taking the official 1.35.23 jar instead would lose this fork's
- * perf/hot-path-optimisations work, so the jar is not a substitute for the merge.
+ * <p>Because both copies are the same file, merging or rebasing onto 1.35.23 conflicts here as an
+ * add/add. Resolve it by KEEPING THIS ONE. The two differ in only two ways, both in this copy's
+ * favour: the pattern is compiled once into a constant instead of on every call, and the comments
+ * record why the 1.x line returns its second component while later versions return their first.
+ * Upstream's regex additionally allows a missing minor component ("MC: 26"), which no released
+ * Minecraft version has ever reported.
+ *
+ * <p>DELETE THIS FILE only when K0busCore itself parses the current version scheme. Taking the
+ * official jar is still not a substitute, since it would lose this fork's
+ * perf/hot-path-optimisations work.
  */
 public abstract class VersionUtils {
 
