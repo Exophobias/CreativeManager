@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &4Non hai il permesso di aprire questo container in Creativa'
   ignite: '{TAG} &4Non hai il permesso di dare fuoco in Creativa'

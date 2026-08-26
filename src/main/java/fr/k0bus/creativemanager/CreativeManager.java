@@ -3,6 +3,10 @@ package fr.k0bus.creativemanager;
 import fr.k0bus.creativemanager.commands.Commands;
 import fr.k0bus.creativemanager.commands.cm.CreativeManagerCommandTab;
 import fr.k0bus.creativemanager.commands.cm.CreativeManagerCommands;
+import fr.k0bus.creativemanager.config.ConfigFiles;
+import fr.k0bus.creativemanager.config.ConfigMigrator;
+import fr.k0bus.creativemanager.config.GenerationSwap;
+import fr.k0bus.creativemanager.config.Messages;
 import fr.k0bus.creativemanager.event.*;
 import fr.k0bus.creativemanager.event.plugin.ChestShop;
 import fr.k0bus.creativemanager.event.plugin.ItemsAdderListener;
@@ -24,7 +28,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -33,17 +36,25 @@ import org.bukkit.plugin.PluginManager;
 
 public class CreativeManager extends K0busCore {
 
-  public static String TAG = StringUtils.translateColor("&r[&cCreativeManager&r] ");
+  public static volatile String TAG = StringUtils.translateColor("&r[&cCreativeManager&r] ");
   public static final String TAG_INV = "&l&4CM &r> ";
-  private static Settings settings;
-  private static Lang lang;
+  private static volatile ConfigGeneration activeGeneration;
+  private volatile ConfigFiles.Batch configStatus;
+  private volatile ConfigFiles.Batch activeConfig;
   private DataManager dataManager;
-  private int saveTask;
+  private int saveTask = -1;
   private static final HashMap<String, Set<Material>> tagMap = new HashMap<>();
   private static UpdateChecker updateChecker;
 
   @Override
   public void onEnable() {
+    ConfigGeneration initialGeneration = prepareConfigGeneration();
+    if (initialGeneration == null) {
+      logBlockedConfig();
+      getServer().getPluginManager().disablePlugin(this);
+      return;
+    }
+    publishConfigGeneration(initialGeneration);
     super.onEnable();
     getLog().log("&9=============================================================");
     updateChecker = new UpdateChecker(this, 75097);
@@ -66,10 +77,7 @@ public class CreativeManager extends K0busCore {
     getLog().log("&9=============================================================");
     getLog().log("&2Created by K0bus for AkuraGaming");
     getLog().log("&9=============================================================");
-    getLog().log("&2Check config file for update");
-    this.updateConfig();
-    getLog().log("&2Loading config file");
-    this.loadConfigManager();
+    logConfigStatus();
     this.registerEvent(this.getServer().getPluginManager());
     getLog().log("&2Listener registered");
     this.registerCommand();
@@ -77,7 +85,7 @@ public class CreativeManager extends K0busCore {
     this.registerPermissions();
     this.loadLog();
     this.loadTags();
-    this.saveTask = SaveTask.run(this);
+    this.saveTask = SaveTask.run(this, getSettings());
     if (getSettings().getConfiguration().getBoolean("stop-inventory-save")) {
       getLog()
           .log(
@@ -87,31 +95,139 @@ public class CreativeManager extends K0busCore {
     getLog().log("&9=============================================================");
   }
 
-  public void loadConfigManager() {
-    settings = new Settings(this);
-    getLog().log("&2Configuration loaded");
-    lang = new Lang(settings.getLang(), this);
-    getLog().log("&2Language loaded &7[" + settings.getLang() + "]");
-    TAG = settings.getTag();
-    antiSpamTick = settings.getConfiguration().getInt("antispam-tick");
+  /** Prepare-then-swap reload. Failure retains the entire previous runtime generation. */
+  public boolean reloadConfigManager() {
+    ConfigGeneration replacement = prepareConfigGeneration();
+    if (replacement == null) {
+      logBlockedConfig();
+      return false;
+    }
+
+    GenerationSwap.Outcome swap =
+        GenerationSwap.activate(
+            replacement,
+            saveTask,
+            candidate -> dataManager == null ? -1 : SaveTask.run(this, candidate.settings()),
+            this::publishConfigGeneration,
+            this::cancelSaveTask);
+    if (!swap.activated()) {
+      getLogger().severe("CreativeManager config reload could not prepare its runtime generation");
+      return false;
+    }
+    saveTask = swap.activeTaskId();
+    if (!swap.oldTaskRetired()) {
+      getLogger().warning("CreativeManager retained an obsolete save schedule after config reload");
+    }
+    logConfigStatus();
+    return true;
   }
 
-  public void updateConfig() {
-    Settings.updateConfig("lang/en_EN.yml", this);
-    Settings.updateConfig("lang/es_ES.yml", this);
-    Settings.updateConfig("lang/fr_FR.yml", this);
-    Settings.updateConfig("lang/it_IT.yml", this);
-    Settings.updateConfig("lang/ru_RU.yml", this);
-    Settings tempsettings = new Settings(this);
-    ConfigurationSection cs = tempsettings.getConfiguration().getConfigurationSection("blacklist");
-    if (cs != null) {
-      tempsettings.getConfiguration().set("list", cs);
-      tempsettings.getConfiguration().set("blacklist", null);
-      tempsettings.save();
-      getLog().log("&2config.yml > blacklist node moved to list");
-    }
-    Settings.updateConfig("config.yml", this);
+  /**
+   * Historical ABI entry point. Callers needing an outcome should use {@link
+   * #reloadConfigManager()}.
+   */
+  @Deprecated
+  public void loadConfigManager() {
+    reloadConfigManager();
   }
+
+  /** Compatibility entry point for integrations which called the old append-only updater. */
+  @Deprecated
+  public void updateConfig() {
+    reloadConfigManager();
+  }
+
+  private ConfigGeneration prepareConfigGeneration() {
+    ConfigFiles.Batch batch = ConfigFiles.prepare(this);
+    configStatus = batch;
+    if (!batch.compatible()) {
+      return null;
+    }
+    ConfigMigrator.Result language = batch.selectedLanguageResult();
+    if (language == null || language.prepared() == null) {
+      return null;
+    }
+    Settings preparedSettings = Settings.from(this, batch.config().prepared().configuration());
+    Messages preparedMessages =
+        Messages.from(this, batch.selectedLanguage(), language.prepared().configuration());
+    return new ConfigGeneration(batch, preparedSettings, preparedMessages);
+  }
+
+  private void publishConfigGeneration(ConfigGeneration generation) {
+    activeGeneration = generation;
+    configStatus = generation.batch();
+    activeConfig = generation.batch();
+    TAG = generation.settings().getTag();
+    antiSpamTick = generation.settings().getConfiguration().getInt("antispam-tick");
+  }
+
+  private void logBlockedConfig() {
+    ConfigFiles.Batch status = configStatus;
+    String resource = status == null ? "configuration" : status.firstBlockedResource();
+    if (resource == null) {
+      resource = "configuration";
+    }
+    ConfigMigrator.Result result = resource == null ? null : status.results().get(resource);
+    String detail = result == null ? "configuration preparation failed" : result.detail();
+    String installed =
+        result == null || result.sourceVersion() < 0 ? "unknown" : "v" + result.sourceVersion();
+    String state = result == null ? "error" : result.state().name().toLowerCase();
+    String active = activeConfig == null ? "none" : "v" + activeConfig.config().loadedVersion();
+    getLogger()
+        .severe(
+            "CreativeManager v"
+                + getDescription().getVersion()
+                + " startup/reload blocked for "
+                + resource
+                + " (supported schema v"
+                + ConfigMigrator.CURRENT_VERSION
+                + ", installed "
+                + installed
+                + ", active "
+                + active
+                + ", state "
+                + state
+                + "): "
+                + detail);
+  }
+
+  private void logConfigStatus() {
+    ConfigFiles.Batch status = activeConfig;
+    if (status == null) {
+      return;
+    }
+    for (var entry : status.results().entrySet()) {
+      ConfigMigrator.Result result = entry.getValue();
+      String backup = result.backup() == null ? "" : ", backup=" + result.backup().getFileName();
+      String source = result.sourceVersion() < 0 ? "unknown" : "v" + result.sourceVersion();
+      getLog()
+          .log(
+              "&2"
+                  + "CreativeManager v"
+                  + getDescription().getVersion()
+                  + ", "
+                  + entry.getKey()
+                  + " supported schema v"
+                  + ConfigMigrator.CURRENT_VERSION
+                  + ", source "
+                  + source
+                  + ", installed v"
+                  + result.loadedVersion()
+                  + ", state "
+                  + result.state().name().toLowerCase()
+                  + backup);
+    }
+  }
+
+  private void cancelSaveTask(int taskId) {
+    if (taskId >= 0
+        && (Bukkit.getScheduler().isCurrentlyRunning(taskId)
+            || Bukkit.getScheduler().isQueued(taskId))) {
+      Bukkit.getScheduler().cancelTask(taskId);
+    }
+  }
+
+  private record ConfigGeneration(ConfigFiles.Batch batch, Settings settings, Messages messages) {}
 
   private void registerEvent(PluginManager pm) {
     pm.registerEvents(new PlayerBuild(this), this);
@@ -246,11 +362,37 @@ public class CreativeManager extends K0busCore {
   }
 
   public static Settings getSettings() {
-    return settings;
+    ConfigGeneration generation = activeGeneration;
+    if (generation == null) {
+      throw new IllegalStateException("CreativeManager configuration is not active");
+    }
+    return generation.settings();
+  }
+
+  /** Returns the tag from the same atomic generation as settings and messages. */
+  public static String getTag() {
+    ConfigGeneration generation = activeGeneration;
+    return generation == null ? TAG : generation.settings().getTag();
   }
 
   public static Lang getLang() {
-    return lang;
+    return getMessages();
+  }
+
+  public static Messages getMessages() {
+    ConfigGeneration generation = activeGeneration;
+    if (generation == null) {
+      throw new IllegalStateException("CreativeManager configuration is not active");
+    }
+    return generation.messages();
+  }
+
+  public ConfigFiles.Batch getConfigStatus() {
+    return configStatus;
+  }
+
+  public boolean isLatestConfigAttemptActive() {
+    return configStatus != null && configStatus == activeConfig;
   }
 
   public static HashMap<String, Set<Material>> getTagMap() {
@@ -267,8 +409,7 @@ public class CreativeManager extends K0busCore {
 
   @Override
   public void onDisable() {
-    if (Bukkit.getScheduler().isCurrentlyRunning(saveTask)
-        || Bukkit.getScheduler().isQueued(saveTask)) Bukkit.getScheduler().cancelTask(saveTask);
+    cancelSaveTask(saveTask);
     if (dataManager != null) dataManager.save();
   }
 }

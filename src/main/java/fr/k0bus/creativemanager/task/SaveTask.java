@@ -1,23 +1,36 @@
 package fr.k0bus.creativemanager.task;
 
 import fr.k0bus.creativemanager.CreativeManager;
+import fr.k0bus.creativemanager.settings.Settings;
 import org.bukkit.Bukkit;
 
 /** Save task class. */
 public class SaveTask {
+  /** Historical ABI overload; new lifecycle code passes its prepared settings explicitly. */
+  @Deprecated
+  public static int run(CreativeManager plugin) {
+    return run(plugin, CreativeManager.getSettings());
+  }
+
   /**
    * Run interval.
    *
    * @param plugin the plugin.
-   * @return the interval.
+   * @param settings the prepared configuration generation
+   * @return the task id, or {@code -1} when periodic saves are disabled
    */
-  public static int run(CreativeManager plugin) {
-    int interval = plugin.getConfig().getInt("save-interval");
+  public static int run(CreativeManager plugin, Settings settings) {
+    int interval = settings.getConfiguration().getInt("save-interval");
     if (interval > 0) {
-      return Bukkit.getScheduler()
-          .scheduleSyncRepeatingTask(
-              plugin, () -> plugin.getDataManager().saveAsync(), 0L, interval * 20L);
+      int taskId =
+          Bukkit.getScheduler()
+              .scheduleSyncRepeatingTask(
+                  plugin, () -> plugin.getDataManager().saveAsync(), 0L, interval * 20L);
+      if (taskId < 0) {
+        throw new IllegalStateException("save schedule was rejected");
+      }
+      return taskId;
     }
-    return 0;
+    return -1;
   }
 }

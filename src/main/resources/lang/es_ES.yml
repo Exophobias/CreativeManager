@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &cNo puedes utilizar contenedores en &4Creativo&c.'
   ignite: '{TAG} &cNo puedes incendiar bloques en &4Creativo&c.'

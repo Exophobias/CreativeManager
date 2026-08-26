@@ -42,7 +42,7 @@ public class PlayerLogin implements Listener {
           .getConfiguration()
           .getBoolean("send-admin-update-message")) {
         if (!CreativeManager.getUpdateChecker().isUpToDate()) {
-          BaseComponent[] tag = TextComponent.fromLegacyText(CreativeManager.TAG + " ");
+          BaseComponent[] tag = TextComponent.fromLegacyText(CreativeManager.getTag() + " ");
           TextComponent message = new TextComponent("CreativeManager updated on Spigot ");
           TextComponent version =
               new TextComponent("v" + CreativeManager.getUpdateChecker().getVersion() + " ");

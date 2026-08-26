@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &4You don''t have permission to open this container in Creative'
   ignite: '{TAG} &4You don''t have permission to ignite block in Creative'

@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &cKreatív módba nincs jogod megnyitni az EnderChest-et.'
   ignite: '{TAG} &cKreatív módba nincs jogod meggyújtani ezt a Blokkot.'

@@ -13,8 +13,14 @@ public class ReloadSubCommands extends Commands {
 
   @Override
   protected void run(CommandSender sender, String[] args) {
-    plugin.loadConfigManager();
-    sender.sendMessage(
-        CreativeManager.TAG + StringUtils.translateColor("&5Configuration reloaded !"));
+    if (plugin.reloadConfigManager()) {
+      sender.sendMessage(
+          CreativeManager.getTag() + StringUtils.translateColor("&5Configuration reloaded !"));
+    } else {
+      sender.sendMessage(
+          CreativeManager.getTag()
+              + StringUtils.translateColor(
+                  "&cConfiguration reload blocked; the previous settings remain active."));
+    }
   }
 }

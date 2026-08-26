@@ -72,7 +72,7 @@ public abstract class Commands implements CommandExecutor {
       if (!sender.hasPermission(permissions)) {
         if (sendMessage)
           sender.sendMessage(
-              CreativeManager.TAG + CreativeManager.getLang().getString("permission.general"));
+              CreativeManager.getTag() + CreativeManager.getLang().getString("permission.general"));
         return false;
       }
     return true;
@@ -83,7 +83,7 @@ public abstract class Commands implements CommandExecutor {
       if (!(sender instanceof Player)) {
         if (sendMessage)
           sender.sendMessage(
-              CreativeManager.TAG + CreativeManager.getLang().getString("permission.general"));
+              CreativeManager.getTag() + CreativeManager.getLang().getString("permission.general"));
         return false;
       }
     return true;
@@ -97,14 +97,14 @@ public abstract class Commands implements CommandExecutor {
         return true;
       } else if (sender instanceof Conversable)
         sender.sendMessage(
-            CreativeManager.TAG
+            CreativeManager.getTag()
                 + CreativeManager.getSettings().getTag()
                 + " &cUnknown subcommands !");
     } else {
       if (defaultSubCmd != null) subCommands.get(defaultSubCmd).onCommand(sender, args);
       else
         sender.sendMessage(
-            CreativeManager.TAG
+            CreativeManager.getTag()
                 + CreativeManager.getSettings().getTag()
                 + " &cMissing arguments !");
     }

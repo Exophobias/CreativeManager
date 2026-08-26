@@ -1,4 +1,5 @@
 ##Plugin configuration
+config-version: 1
 tag: '&r[&cCreativeManager&r] '
 lang: en_EN
 log: true

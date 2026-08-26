@@ -35,11 +35,12 @@ public class ItemsSubCommands extends Commands {
       nbtKey.append(k).append("§6");
     }
 
-    sender.sendMessage(CreativeManager.TAG + "§r");
-    sender.sendMessage(CreativeManager.TAG + "§6You've requested items informations below");
-    sender.sendMessage(CreativeManager.TAG + "§r");
-    sender.sendMessage(CreativeManager.TAG + "§l§7Name §8>> §r§6" + itemStack.getType().name());
-    sender.sendMessage(CreativeManager.TAG + "§l§7Tags §8>> §r§6[" + tags + "]");
-    sender.sendMessage(CreativeManager.TAG + "§l§7NBT Keys §8>> §r§6[" + nbtKey + "]");
+    sender.sendMessage(CreativeManager.getTag() + "§r");
+    sender.sendMessage(CreativeManager.getTag() + "§6You've requested items informations below");
+    sender.sendMessage(CreativeManager.getTag() + "§r");
+    sender.sendMessage(
+        CreativeManager.getTag() + "§l§7Name §8>> §r§6" + itemStack.getType().name());
+    sender.sendMessage(CreativeManager.getTag() + "§l§7Tags §8>> §r§6[" + tags + "]");
+    sender.sendMessage(CreativeManager.getTag() + "§l§7NBT Keys §8>> §r§6[" + nbtKey + "]");
   }
 }

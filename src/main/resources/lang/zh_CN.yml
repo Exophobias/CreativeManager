@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &4你没有权限在创造模式下打开容器'
   ignite: '{TAG} &4你没有权限在创造模式下点燃方块'

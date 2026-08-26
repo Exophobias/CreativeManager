@@ -89,7 +89,7 @@ public class InventoryManager {
       } catch (IOException e) {
         plugin.getLogger().severe(e.getMessage());
       }
-      if (plugin.getConfig().getBoolean("log"))
+      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
         this.plugin
             .getLogger()
             .info(
@@ -101,7 +101,7 @@ public class InventoryManager {
                     + gm_name);
     } else {
       p.getInventory().clear();
-      if (plugin.getConfig().getBoolean("log"))
+      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
         this.plugin
             .getLogger()
             .info(
@@ -132,7 +132,7 @@ public class InventoryManager {
         && cm.getConfiguration().contains(gm_name + ".armor")
         && cm.getConfiguration().isString(gm_name + ".armor")) {
       cm.save();
-      if (plugin.getConfig().getBoolean("log"))
+      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
         this.plugin
             .getLogger()
             .info(

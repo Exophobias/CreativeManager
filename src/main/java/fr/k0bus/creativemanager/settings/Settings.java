@@ -7,10 +7,16 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 /** Settings class. */
 public class Settings extends Configuration {
+
+  private static final ThreadLocal<YamlConfiguration> CONSTRUCTION = new ThreadLocal<>();
+
+  private YamlConfiguration configuration;
 
   /**
    * Values read on every event are cached here so that hot paths do not walk the YAML tree. The
@@ -25,11 +31,60 @@ public class Settings extends Configuration {
   /**
    * Instantiates a new Settings.
    *
-   * @param instance the instance
+   * @param configuration the already validated configuration snapshot
    */
-  public Settings(CreativeManager instance) {
-    super("config.yml", instance);
+  public static Settings from(CreativeManager instance, YamlConfiguration configuration) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(configuration, "configuration");
+    if (CONSTRUCTION.get() != null) {
+      throw new IllegalStateException("nested settings snapshot construction is not supported");
+    }
+    CONSTRUCTION.set(configuration);
+    try {
+      return new Settings(instance, "config.yml");
+    } finally {
+      CONSTRUCTION.remove();
+    }
+  }
+
+  private Settings(CreativeManager instance, String filename) {
+    super(filename, instance);
+    this.configuration = Objects.requireNonNull(CONSTRUCTION.get(), "prepared settings");
+    CONSTRUCTION.remove();
     cacheHotValues();
+  }
+
+  /** Historical constructor retained for integrations; it binds to the active exact generation. */
+  @Deprecated
+  public Settings(CreativeManager instance) {
+    this(instance, bindActiveGeneration(instance));
+  }
+
+  private static String bindActiveGeneration(CreativeManager instance) {
+    Objects.requireNonNull(instance, "instance");
+    CONSTRUCTION.set((YamlConfiguration) CreativeManager.getSettings().getConfiguration());
+    return "config.yml";
+  }
+
+  @Override
+  public YamlConfiguration getConfiguration() {
+    YamlConfiguration active = configuration;
+    return active == null
+        ? Objects.requireNonNull(CONSTRUCTION.get(), "prepared settings")
+        : active;
+  }
+
+  @Override
+  public void loadConfig() {
+    if (configuration != null && getPlugin() instanceof CreativeManager manager) {
+      manager.reloadConfigManager();
+    }
+  }
+
+  @Override
+  public void save() {
+    throw new UnsupportedOperationException(
+        "managed settings can only be replaced through CreativeManager reload");
   }
 
   private void cacheHotValues() {

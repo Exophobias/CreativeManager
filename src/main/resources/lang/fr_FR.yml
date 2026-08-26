@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &cVous n''avez pas la permissions d''ouvrir les coffres en créatif'
   ignite: '{TAG} &cVous n''avez pas la permissions d''allumer le feu en créatif'

@@ -24,7 +24,7 @@ public class CMUtils {
   }
 
   public static String parse(String string) {
-    return string.replace("{TAG}", CreativeManager.TAG);
+    return string.replace("{TAG}", CreativeManager.getTag());
   }
 
   public static String parse(String string, HashMap<String, String> replaceMap) {

@@ -1,3 +1,4 @@
+config-version: 1
 permission:
   container: '{TAG} &4Nemate dozvolu za otvaranje ovog spremnika u Creative modu'
   ignite: '{TAG} &4Nemate dozvolu za paljenje bloka u Creative modu'
