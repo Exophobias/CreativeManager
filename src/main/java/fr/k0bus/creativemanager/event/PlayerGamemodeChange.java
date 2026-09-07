@@ -20,6 +20,8 @@ import org.bukkit.potion.PotionEffect;
 /** Player gamemode change event. */
 public class PlayerGamemodeChange implements Listener {
   private final CreativeManager plugin;
+  private final java.util.Map<PlayerGameModeChangeEvent, InventoryManager> switched =
+      new java.util.IdentityHashMap<>();
 
   /**
    * Instantiates a new Player gamemode change.
@@ -35,8 +37,20 @@ public class PlayerGamemodeChange implements Listener {
    *
    * @param e the event.
    */
-  @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+  @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
   public void onGMChange(PlayerGameModeChangeEvent e) {
+    try {
+      changeInventory(e);
+    } catch (RuntimeException | LinkageError failure) {
+      e.setCancelled(true);
+      InventoryManager manager = switched.remove(e);
+      if (manager != null) manager.restorePreviousInventory();
+      plugin.getLogger().log(java.util.logging.Level.SEVERE,
+          "Gamemode inventory change failed for " + e.getPlayer().getUniqueId(), failure);
+    }
+  }
+
+  private void changeInventory(PlayerGameModeChangeEvent e) {
     try {
       if (!e.getPlayer().getOpenInventory().getType().equals(InventoryType.CRAFTING))
         e.getPlayer().closeInventory();
@@ -51,11 +65,15 @@ public class PlayerGamemodeChange implements Listener {
 
       GameMode gmFrom = getGamemodeFromSetting(p.getGameMode());
       GameMode gmTo = getGamemodeFromSetting(e.getNewGameMode());
+      im.rememberCurrentInventory();
 
       if (!gmFrom.equals(gmTo)) {
-        im.saveInventory(gmFrom);
-        im.loadInventory(gmTo);
+        if (!im.switchInventory(gmFrom, gmTo)) {
+          e.setCancelled(true);
+          return;
+        }
       }
+      switched.put(e, im);
 
       if (CreativeManager.getSettings().getProtection(Protections.ARMOR)
           && !p.hasPermission("creativemanager.bypass.armor")) {
@@ -89,6 +107,12 @@ public class PlayerGamemodeChange implements Listener {
       if (CreativeManager.getSettings().sendPlayerMessages())
         CMUtils.sendMessage(p, "inventory.change", replaceMap);
     }
+  }
+
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void restoreCancelledSwitch(PlayerGameModeChangeEvent event) {
+    InventoryManager manager = switched.remove(event);
+    if (manager != null && event.isCancelled()) manager.restorePreviousInventory();
   }
 
   private GameMode getGamemodeFromSetting(GameMode gameMode) {

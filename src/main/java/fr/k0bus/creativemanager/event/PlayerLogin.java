@@ -37,6 +37,7 @@ public class PlayerLogin implements Listener {
   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
   @SuppressWarnings("deprecation")
   public void onLogin(PlayerJoinEvent e) {
+    InventoryManager.beginSession(e.getPlayer().getUniqueId());
     if (e.getPlayer().hasPermission("creativemanager.admin.update")) {
       if (CreativeManager.getSettings()
           .getConfiguration()
@@ -78,8 +79,7 @@ public class PlayerLogin implements Listener {
     if (forceGamemode) {
       if (!e.getPlayer().hasPermission("creativemanager.bypass.inventory")) {
         InventoryManager im = new InventoryManager(e.getPlayer(), plugin);
-        if (im.hasContent()) im.loadInventory(plugin.getServer().getDefaultGameMode());
-        else im.saveInventory(e.getPlayer().getGameMode());
+        im.restoreForcedGameMode(plugin.getServer().getDefaultGameMode());
       }
     }
   }

@@ -6,213 +6,200 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.bukkit.GameMode;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
-/** Inventory manager class. */
+/** Saves the current inventory before applying a completely decoded destination. */
 public class InventoryManager {
-  private final Player p;
-  private final UserData cm;
-  private final CreativeManager plugin;
+  private static final java.util.Set<java.util.UUID> BLOCKED_SAVES =
+      java.util.concurrent.ConcurrentHashMap.newKeySet();
+  private final Player player;
+  private final UserData data;
+  private final FileConfiguration settings;
+  private final Logger logger;
+  private InventoryState previous;
 
-  /**
-   * Instantiates a new Inventory manager.
-   *
-   * @param p the player.
-   * @param instance the instance.
-   */
-  public InventoryManager(Player p, CreativeManager instance) {
-    this.p = p;
-    this.plugin = instance;
-    this.cm = new UserData(p, plugin);
+  public InventoryManager(Player player, CreativeManager plugin) {
+    this(player, new UserData(player, plugin), CreativeManager.getSettings().getConfiguration(),
+        plugin.getLogger());
   }
 
-  /**
-   * Item stack array to base 64 string.
-   *
-   * @param items the items.
-   * @return the string.
-   * @throws IllegalStateException the illegal state exception.
-   */
-  public static String itemStackArrayToBase64(ItemStack[] items) throws IllegalStateException {
-    try {
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-
-      // Write the size of the inventory
-      dataOutput.writeInt(items.length);
-
-      // Save every element in the list
-      for (ItemStack item : items) {
-        dataOutput.writeObject(item);
-      }
-
-      // Serialize that array
-      dataOutput.close();
-      return Base64.getMimeEncoder().encodeToString(outputStream.toByteArray());
-    } catch (Exception e) {
-      throw new IllegalStateException("Unable to save item stacks.", e);
-    }
+  InventoryManager(Player player, UserData data, FileConfiguration settings, Logger logger) {
+    this.player = player;
+    this.data = data;
+    this.settings = settings;
+    this.logger = logger;
   }
 
   public boolean hasContent() {
-    return !cm.getConfiguration().getKeys(false).isEmpty();
+    return !data.isHealthy() || !data.getConfiguration().getKeys(false).isEmpty();
   }
 
-  /**
-   * Load inventory.
-   *
-   * @param gm the game mode.
-   */
-  public void loadInventory(GameMode gm) {
-    if (CreativeManager.getSettings().getConfiguration().getBoolean("stop-inventory-save")) return;
-    if (CreativeManager.getSettings().getConfiguration().getBoolean("stop-inventory-save-perm"))
-      if (p.hasPermission("creativemanager.bypass.inventory-save")) return;
-    String gm_name = gm.name();
-    if (cm.getConfiguration().contains(gm_name + ".content")
-        && cm.getConfiguration().isString(gm_name + ".content")
-        && cm.getConfiguration().contains(gm_name + ".armor")
-        && cm.getConfiguration().isString(gm_name + ".armor")) {
-      try {
-        p.getInventory()
-            .setContents(
-                this.itemStackArrayFromBase64(
-                    cm.getConfiguration().getString(gm_name + ".content")));
-        p.getInventory()
-            .setArmorContents(
-                this.itemStackArrayFromBase64(cm.getConfiguration().getString(gm_name + ".armor")));
-      } catch (IOException e) {
-        plugin.getLogger().severe(e.getMessage());
-      }
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
-        this.plugin
-            .getLogger()
-            .info(
-                "Load inventory of user "
-                    + p.getName()
-                    + " in file "
-                    + p.getUniqueId()
-                    + ".yml for gamemode "
-                    + gm_name);
-    } else {
-      p.getInventory().clear();
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
-        this.plugin
-            .getLogger()
-            .info(
-                "Clear inventory for "
-                    + p.getName()
-                    + " ("
-                    + p.getUniqueId()
-                    + ") because no saved inventory found for gamemode "
-                    + gm_name);
-    }
+  private boolean disabled() {
+    return settings.getBoolean("stop-inventory-save")
+        || (settings.getBoolean("stop-inventory-save-perm")
+            && player.hasPermission("creativemanager.bypass.inventory-save"));
   }
 
-  /**
-   * Save inventory.
-   *
-   * @param gm the game mode.
-   */
-  public void saveInventory(GameMode gm) {
-    if (CreativeManager.getSettings().getConfiguration().getBoolean("stop-inventory-save")) return;
-    if (CreativeManager.getSettings().getConfiguration().getBoolean("stop-inventory-save-perm"))
-      if (p.hasPermission("creativemanager.bypass.inventory-save")) return;
-    String gm_name = gm.name();
-    String[] encoded = this.playerInventoryToBase64(p.getInventory());
-    cm.getConfiguration().set(gm_name + ".content", encoded[0]);
-    cm.getConfiguration().set(gm_name + ".armor", encoded[1]);
-    if (cm.getConfiguration().contains(gm_name + ".content")
-        && cm.getConfiguration().isString(gm_name + ".content")
-        && cm.getConfiguration().contains(gm_name + ".armor")
-        && cm.getConfiguration().isString(gm_name + ".armor")) {
-      cm.save();
-      if (CreativeManager.getSettings().getConfiguration().getBoolean("log"))
-        this.plugin
-            .getLogger()
-            .info(
-                "Save inventory of user "
-                    + p.getName()
-                    + " in file "
-                    + p.getUniqueId()
-                    + ".yml for gamemode "
-                    + gm_name);
-    }
-  }
-
-  /**
-   * Player inventory to base 64 string.
-   *
-   * @param playerInventory the player inventory.
-   * @return the string [ ]
-   * @throws IllegalStateException the illegal state exception.
-   */
-  private String[] playerInventoryToBase64(PlayerInventory playerInventory)
-      throws IllegalStateException {
-    // get the main content part, this doesn't return the armor
-    String content = this.toBase64(playerInventory);
-    String armor = itemStackArrayToBase64(playerInventory.getArmorContents());
-
-    return new String[] {content, armor};
-  }
-
-  /**
-   * Special thanks to Comphenix in the Bukkit forums or also known as aadnk on GitHub. <a
-   * href="https://gist.github.com/aadnk/8138186">Original Source</a>
-   *
-   * @param inventory the inventory
-   * @return the string
-   * @throws IllegalStateException the illegal state exception
-   */
-  private String toBase64(Inventory inventory) throws IllegalStateException {
+  public boolean loadInventory(GameMode mode) {
+    if (disabled()) return true;
+    previous = null;
     try {
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
+      InventoryState destination = read(mode);
+      previous = snapshot();
+      apply(destination);
+      log("Load", mode);
+      return true;
+    } catch (IOException | RuntimeException e) {
+      restorePreviousInventory();
+      logger.log(Level.SEVERE, "Could not load inventory for " + player.getUniqueId(), e);
+      return false;
+    }
+  }
 
-      // Write the size of the inventory
-      dataOutput.writeInt(inventory.getSize());
+  public boolean saveInventory(GameMode mode) {
+    if (BLOCKED_SAVES.contains(player.getUniqueId())) return false;
+    if (disabled()) return true;
+    try {
+      save(mode, snapshot());
+      return true;
+    } catch (IOException | RuntimeException e) {
+      logger.log(Level.SEVERE, "Could not save inventory for " + player.getUniqueId(), e);
+      return false;
+    }
+  }
 
-      // Save every element in the list
-      for (int i = 0; i < inventory.getSize(); i++) {
-        dataOutput.writeObject(inventory.getItem(i));
-      }
+  public boolean switchInventory(GameMode from, GameMode to) {
+    if (BLOCKED_SAVES.contains(player.getUniqueId())) return false;
+    if (disabled() || from == to) return true;
+    previous = null;
+    try {
+      // Decode both arrays, including armor, before saving or touching a live slot.
+      InventoryState destination = read(to);
+      InventoryState source = snapshot();
+      save(from, source);
+      previous = source;
+      apply(destination);
+      log("Load", to);
+      return true;
+    } catch (IOException | RuntimeException e) {
+      restorePreviousInventory();
+      logger.log(Level.SEVERE, "Inventory switch refused for " + player.getUniqueId(), e);
+      return false;
+    }
+  }
 
-      // Serialize that array
-      dataOutput.close();
-      return Base64.getMimeEncoder().encodeToString(outputStream.toByteArray());
-    } catch (Exception e) {
+  public void rememberCurrentInventory() {
+    previous = snapshot();
+  }
+
+  public static void beginSession(java.util.UUID playerId) {
+    BLOCKED_SAVES.remove(playerId);
+  }
+
+  /** A forced native mode is already applied at join; failed restoration must block quit saves. */
+  public boolean restoreForcedGameMode(GameMode mode) {
+    boolean success = hasContent() ? loadInventory(mode) : saveInventory(player.getGameMode());
+    if (!success) {
+      BLOCKED_SAVES.add(player.getUniqueId());
+      player.kickPlayer("Your saved inventory could not be loaded. Please contact staff.");
+    }
+    return success;
+  }
+
+  /** Restores the source if another HIGHEST listener subsequently cancels the gamemode event. */
+  public void restorePreviousInventory() {
+    if (previous == null) return;
+    try {
+      apply(previous);
+      previous = null;
+    } catch (RuntimeException e) {
+      logger.log(Level.SEVERE, "Could not restore inventory; saved source remains available for "
+          + player.getUniqueId(), e);
+    }
+  }
+
+  private void save(GameMode mode, InventoryState source) throws IOException {
+    data.saveInventory(mode, itemStackArrayToBase64(source.contents), itemStackArrayToBase64(source.armor));
+    log("Save", mode);
+  }
+
+  private InventoryState snapshot() {
+    return new InventoryState(copy(player.getInventory().getContents()),
+        copy(player.getInventory().getArmorContents()));
+  }
+
+  private static ItemStack[] copy(ItemStack[] source) {
+    ItemStack[] result = source.clone();
+    for (int i = 0; i < result.length; i++) {
+      if (result[i] != null) result[i] = result[i].clone();
+    }
+    return result;
+  }
+
+  private InventoryState read(GameMode mode) throws IOException {
+    data.requireHealthy();
+    PlayerInventory inventory = player.getInventory();
+    if (!data.getConfiguration().contains(mode.name())) {
+      return new InventoryState(new ItemStack[inventory.getSize()], new ItemStack[4]);
+    }
+    return new InventoryState(
+        itemStackArrayFromBase64(data.getConfiguration().getString(mode.name() + ".content"),
+            inventory.getSize(), false),
+        itemStackArrayFromBase64(data.getConfiguration().getString(mode.name() + ".armor"), 4, true));
+  }
+
+  private void apply(InventoryState state) {
+    player.getInventory().setContents(state.contents);
+    player.getInventory().setArmorContents(state.armor);
+  }
+
+  private void log(String action, GameMode mode) {
+    if (settings.getBoolean("log")) {
+      logger.info(action + " inventory of " + player.getUniqueId() + " for gamemode " + mode.name());
+    }
+  }
+
+  public static String itemStackArrayToBase64(ItemStack[] items) throws IllegalStateException {
+    try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+        BukkitObjectOutputStream stream = new BukkitObjectOutputStream(output)) {
+      stream.writeInt(items.length);
+      for (ItemStack item : items) stream.writeObject(item);
+      stream.flush();
+      return Base64.getMimeEncoder().encodeToString(output.toByteArray());
+    } catch (IOException | RuntimeException e) {
       throw new IllegalStateException("Unable to save item stacks.", e);
     }
   }
 
-  /**
-   * Item stack array from base 64 item stack.
-   *
-   * @param data the data.
-   * @return the item stack.
-   * @throws IOException the io exception.
-   */
-  private ItemStack[] itemStackArrayFromBase64(String data) throws IOException {
-    try {
-      ByteArrayInputStream inputStream =
-          new ByteArrayInputStream(Base64.getMimeDecoder().decode(data));
-      BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
-      ItemStack[] items = new ItemStack[dataInput.readInt()];
-
-      // Read the serialized inventory.
-      for (int i = 0; i < items.length; i++) {
-        items[i] = (ItemStack) dataInput.readObject();
+  static ItemStack[] itemStackArrayFromBase64(String encoded, int maximum, boolean exact)
+      throws IOException {
+    if (encoded == null) throw new IOException("Missing inventory data");
+    try (BukkitObjectInputStream stream = new BukkitObjectInputStream(
+        new ByteArrayInputStream(Base64.getMimeDecoder().decode(encoded)))) {
+      int size = stream.readInt();
+      if (size < 0 || size > maximum || (exact && size != maximum)) {
+        throw new IOException("Invalid inventory size " + size);
       }
-
-      dataInput.close();
+      ItemStack[] items = new ItemStack[size];
+      for (int i = 0; i < size; i++) {
+        Object item = stream.readObject();
+        if (item != null && !(item instanceof ItemStack)) throw new IOException("Invalid inventory item");
+        items[i] = (ItemStack) item;
+      }
+      if (stream.read() != -1) throw new IOException("Trailing inventory data");
       return items;
-    } catch (ClassNotFoundException e) {
-      throw new IOException("Unable to decode class type.", e);
+    } catch (ClassNotFoundException | RuntimeException e) {
+      throw new IOException("Unable to decode inventory.", e);
     }
   }
+
+  private record InventoryState(ItemStack[] contents, ItemStack[] armor) {}
 }
