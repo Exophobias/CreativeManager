@@ -26,8 +26,11 @@ public class CreativeManagerCommandTab implements TabCompleter {
     List<String> cmdList = new ArrayList<>();
     if (args.length == 1)
       for (Map.Entry<String, Commands> entry : commands.getSubCommands().entrySet()) {
-        if (entry.getValue().canUse(sender, false)) cmdList.add(entry.getKey());
+        if ((entry.getValue().permissions == null || sender.hasPermission(entry.getValue().permissions))
+            && entry.getKey().startsWith(args[0].toLowerCase(java.util.Locale.ROOT)))
+          cmdList.add(entry.getKey());
       }
+    if (args.length == 1 && "help".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) cmdList.add("help");
     return cmdList;
   }
 }
