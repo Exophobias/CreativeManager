@@ -1,9 +1,8 @@
 package fr.k0bus.creativemanager.commands.cm;
 
-import de.tr7zw.changeme.nbtapi.NBT;
-import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 import fr.k0bus.creativemanager.CreativeManager;
 import fr.k0bus.creativemanager.commands.Commands;
+import fr.k0bus.creativemanager.utils.NBTItemHelper;
 import java.util.Map;
 import java.util.Set;
 import org.bukkit.Material;
@@ -28,12 +27,7 @@ public class ItemsSubCommands extends Commands {
         tags.append("§r#").append(entry.getKey()).append("§6");
       }
     }
-    ReadWriteNBT tmp = NBT.itemStackToNBT(itemStack);
-    StringBuilder nbtKey = new StringBuilder();
-    for (String k : tmp.getKeys()) {
-      if (!nbtKey.toString().isEmpty()) nbtKey.append(", ");
-      nbtKey.append(k).append("§6");
-    }
+    String nbtKey = NBTItemHelper.getNbtKeys(itemStack);
 
     sender.sendMessage(CreativeManager.getTag() + "§r");
     sender.sendMessage(CreativeManager.getTag() + "§6You've requested items informations below");

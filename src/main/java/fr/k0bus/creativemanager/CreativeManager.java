@@ -249,13 +249,13 @@ public class CreativeManager extends K0busCore {
     pm.registerEvents(new FlowEvent(this), this);
     pm.registerEvents(new BlockEvent(this), this);
     pm.registerEvents(new WorldEvent(this), this);
-    /*  Add event checked for old version */
+    pm.registerEvents(new InventoryMove(this), this);
+    // Keep NBT protection self-contained: the maintained distribution shades the NBT API.
     try {
       ItemMeta.class.getMethod("getPersistentDataContainer", (Class<?>[]) null);
-      pm.registerEvents(new InventoryMove(this, true), this);
+      pm.registerEvents(new InventoryMoveNBT(this), this);
     } catch (NoSuchMethodException | SecurityException e) {
       getLog().log("NBT Protection disabled on your Minecraft version");
-      pm.registerEvents(new InventoryMove(this, false), this);
     }
     try {
       ProjectileHitEvent.class.getMethod("getHitEntity", (Class<?>[]) null);

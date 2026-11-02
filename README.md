@@ -1,3 +1,8 @@
+> Patriam integration through upstream `336701b` (1.35.24): the NBT listener/helper
+> isolation is included while the NBT library remains bundled and relocated. Custom-NBT
+> protection does not depend on a separately installed plugin. Coalesced inventory scans,
+> strict configuration migration/reload and permission-filtered staff help are retained.
+
 ﻿# CreativeManager
 
 CreativeManager is a Spigot plugin allow admin to manage what creative player can do.
